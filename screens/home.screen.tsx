@@ -60,7 +60,7 @@ export default function HomeScreen() {
                     Press the button and start speaking!.
                 </Text>
                 <Text style={{
-                    marginTop: verticalScale(100), color: '#fff',
+                    marginTop: verticalScale(25), color: '#fff',
                     fontSize: scale(12), fontWeight: '500'
                 }}>VIORA</Text>
                 <Text style={{ color: '#9A9999', fontSize: scale(10), fontFamily: 'SegoeUI', fontWeight: '400' }}>Ai Voice Assistant</Text>
