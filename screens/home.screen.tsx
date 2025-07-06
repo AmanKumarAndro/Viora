@@ -1,9 +1,9 @@
-import { LinearGradient } from 'expo-linear-gradient'
-import React from 'react'
-import { Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import { scale, verticalScale } from 'react-native-size-matters'
 import { FontAwesome } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
+import { LinearGradient } from 'expo-linear-gradient';
+import React from 'react';
+import { Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { scale, verticalScale } from 'react-native-size-matters';
 
 export default function HomeScreen() {
     let [fontLoaded, fontError] = useFonts({
@@ -63,7 +63,7 @@ export default function HomeScreen() {
                     marginTop: verticalScale(100), color: '#fff',
                     fontSize: scale(12), fontWeight: '500'
                 }}>VIORA</Text>
-                <Text style={{ color: '#9A9999', fontSize: scale(10), fontWeight: '400' }}>Ai Voice Assistant</Text>
+                <Text style={{ color: '#9A9999', fontSize: scale(10), fontFamily: 'SegoeUI', fontWeight: '400' }}>Ai Voice Assistant</Text>
 
             </View>
 
