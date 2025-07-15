@@ -10,7 +10,6 @@ import LottieView from "lottie-react-native";
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Image, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { scale, verticalScale } from 'react-native-size-matters';
-import * as FileSystem from 'expo-file-system';
 export default function HomeScreen() {
     let [fontLoaded, fontError] = useFonts({
         SegoeUI: require("../assets/fonts/Segoe-UI.ttf"),
@@ -47,23 +46,24 @@ export default function HomeScreen() {
     const recordingOptions: any = {
         android: {
             extension: ".wav",
-            outPutFormat: Audio.AndroidOutputFormat.DEFAULT,
-            androidEncoder: Audio.AndroidAudioEncoder.DEFAULT,
-            sampleRate: 16000,
-            numberOfChannels: 1,
-            bitRate: 64000,
+            outPutFormat: Audio.AndroidOutputFormat.MPEG_4,
+            androidEncoder: Audio.AndroidAudioEncoder.AAC,
+            sampleRate: 44100,
+            numberOfChannels: 2,
+            bitRate: 128000,
         },
         ios: {
             extension: ".wav",
-            audioQuality: Audio.IOSAudioQuality.MEDIUM,
-            sampleRate: 16000,
-            numberOfChannels: 1,
-            bitRate: 64000,
+            audioQuality: Audio.IOSAudioQuality.HIGH,
+            sampleRate: 44100,
+            numberOfChannels: 2,
+            bitRate: 128000,
             linearPCMBitDepth: 16,
             linearPCMIsBigEndian: false,
             linearPCMIsFloat: false,
         },
     };
+
 
     const startRecording = async () => {
         const hasPermission = await getMicrophonePermission();
@@ -91,167 +91,15 @@ export default function HomeScreen() {
             });
 
             const uri = recording?.getURI();
-            console.log("Recording URI:", uri);
 
-            if (!uri) {
-                throw new Error("No recording URI available");
-            }
-            // const transcript = await sendAudioToWhisper(uri!);
-            const transcript = await sendAudioToFreeTranscription(uri!);
-            console.log("Transcript:", transcript);
+            const transcript = await sendAudioToWhisper(uri!);
 
-            setText(transcript );
+            setText(transcript);
 
-            await sendToGemini("What is your name?");
-            // await sendToGpt(transcript);
+            await sendToGpt(transcript);
         } catch (error) {
             console.log("Failed to stop Recording", error);
             Alert.alert("Error", "Failed to stop recording");
-        }
-    };
-    const sendAudioToFreeTranscription = async (uri: string) => {
-        try {
-            const apiKey = process.env.EXPO_PUBLIC_ASSEMBLYAI_API_KEY;
-            console.log("AssemblyAI API key:", apiKey);
-
-            if (!apiKey) {
-                throw new Error("AssemblyAI API key is missing");
-            }
-
-            console.log("Reading file as binary...");
-
-            // Read the file as binary data
-            const fileUri = uri.startsWith('file://') ? uri : `file://${uri}`;
-            const response = await fetch(fileUri);
-            const arrayBuffer = await response.arrayBuffer();
-
-            console.log("File size:", arrayBuffer.byteLength, "bytes");
-
-            // Upload the binary data directly
-            console.log("Uploading binary data to AssemblyAI...");
-            const uploadResponse = await fetch('https://api.assemblyai.com/v2/upload', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/octet-stream',
-                },
-                body: arrayBuffer, // Send raw binary data
-            });
-
-            if (!uploadResponse.ok) {
-                const errorText = await uploadResponse.text();
-                console.log("Upload error:", errorText);
-                throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`);
-            }
-
-            const uploadData = await uploadResponse.json();
-            console.log("Upload successful! Audio URL:", uploadData.upload_url);
-
-            // Request transcription
-            console.log("Requesting transcription...");
-            const transcriptResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    audio_url: uploadData.upload_url,
-                    language_code: 'en_us',
-                }),
-            });
-
-            if (!transcriptResponse.ok) {
-                const errorText = await transcriptResponse.text();
-                console.log("Transcription request error:", errorText);
-                throw new Error(`Transcription request failed: ${transcriptResponse.status}`);
-            }
-
-            const transcriptData = await transcriptResponse.json();
-            const transcriptId = transcriptData.id;
-            console.log("Transcription ID:", transcriptId);
-
-            // Poll for completion
-            let transcript = null;
-            let attempts = 0;
-            const maxAttempts = 60; // 60 seconds max
-
-            while (!transcript && attempts < maxAttempts) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                attempts++;
-
-                const statusResponse = await fetch(
-                    `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
-                    {
-                        headers: {
-                            'Authorization': `Bearer ${apiKey}`,
-                        },
-                    }
-                );
-
-                if (!statusResponse.ok) {
-                    throw new Error(`Status check failed: ${statusResponse.status}`);
-                }
-
-                const statusData = await statusResponse.json();
-                console.log(`Polling attempt ${attempts}, status: ${statusData.status}`);
-
-                if (statusData.status === 'completed') {
-                    transcript = statusData.text;
-                    console.log("Transcription completed:", transcript);
-                    break;
-                } else if (statusData.status === 'error') {
-                    console.log("Transcription error:", statusData.error);
-                    throw new Error(`Transcription failed: ${statusData.error}`);
-                }
-            }
-
-            if (!transcript) {
-                throw new Error("Transcription timed out after 60 seconds");
-            }
-
-            return transcript;
-
-        } catch (error) {
-            console.log('Transcription error:', error);
-            return "Sorry, I couldn't understand the audio. Please try again.";
-        }
-    };
-    const sendToGemini = async (text: string) => {
-        try {
-            const response = await axios.post(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.EXPO_PUBLIC_GEMINI_API_KEY}`,
-                {
-                    contents: [
-                        {
-                            parts: [
-                                {
-                                    text: `You are Viora, a friendly AI assistant who responds naturally and refers to yourself as Viora when asked for your name. You are a helpful assistant who can answer questions and help with tasks. You must always respond in English, no matter the input language, and provide helpful, clear answers.
-    
-    User: ${text}`
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                }
-            );
-
-            const aiResponse = response.data.candidates[0].content.parts[0].text;
-            setText(aiResponse);
-            console.log(response.data);
-            setLoading(false);
-            setAIResponse(true);
-            await speakText(aiResponse);
-            return aiResponse;
-        } catch (error) {
-            console.log("Error sending text to Gemini", error);
-            Alert.alert("Error", "Failed to get AI response");
-            setLoading(false);
         }
     };
     const sendAudioToWhisper = async (uri: string) => {
@@ -337,7 +185,6 @@ export default function HomeScreen() {
             lottieRef.current?.reset();
         }
     }, [AISpeaking]);
-
 
     return (
         <LinearGradient
@@ -445,14 +292,7 @@ export default function HomeScreen() {
                 <Text style={{
                     color: '#fff', fontSize: scale(16), width: scale(269), textAlign: 'center',
                     fontFamily: 'SegoeUI',
-                    lineHeight: scale(24),
-                    backdropFilter: "blur(15px)",
-                    zIndex: 100,
-                    borderRadius: scale(10),
-                    paddingVertical: verticalScale(10),
-                    paddingHorizontal: scale(15),
-                    // backgroundColor: "rgba(255, 255, 255, 0.1)",
-                    // backDropFilter: "blur(15px)"
+                    lineHeight: scale(24)
                 }}>
                     {loading ? 'Listening...' : text || 'Press the button and start speaking!...'}
                 </Text>
@@ -474,10 +314,9 @@ export default function HomeScreen() {
                         justifyContent: "space-between",
                         alignItems: "center",
                         width: scale(360),
-                                                
                     }}
                 >
-                    <TouchableOpacity onPress={() => sendToGemini(text)}>
+                    <TouchableOpacity onPress={() => sendToGpt(text)}>
                         <Regenerate />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => speakText(text)}>

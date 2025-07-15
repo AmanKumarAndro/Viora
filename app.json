@@ -33,7 +33,11 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      ["expo-av",
+        {
+          "microphonePermission": "Allow VIORA to access your microphone."
+        }]
     ],
     "experiments": {
       "typedRoutes": true
